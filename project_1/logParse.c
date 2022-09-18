@@ -23,30 +23,61 @@ int main(int argc, char** argv)
 	char* fileName = "input.dat";
 	char* outputFileName = "output.dat";
 
-	if (argc == 2) {
+	if (argc == 2)
+	{
 		int option;
-		while ( (option = getopt(argc, argv, "hi:o:")) != -1 ) {
-		switch(option) {
-			case 'h':
-				help();
-				return EXIT_SUCCESS;
-				break;
-			case 'i':
-				fileName = optarg;
-				break;
-			case 'o':
-				outputFileName = optarg;
-				break;
-			case '?':
-				if (isprint (optopt))
-				   fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-				else
-				   fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
-				return EXIT_FAILURE;
-			default:
-				help();
-				return EXIT_SUCCESS;
+		while ( (option = getopt(argc, argv, "hi:o:")) != -1 )
+		{
+			switch(option)
+			{
+				case 'h':
+					help();
+					return EXIT_SUCCESS;
+					break;
+				case 'i':
+					fileName = optarg;
+					break;
+				case 'o':
+					outputFileName = optarg;
+					break;
+				case '?':
+					if (isprint (optopt))
+					   fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+					else
+					   fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+					return EXIT_FAILURE;
+				default:
+					help();
+					return EXIT_SUCCESS;
 			}
 		}
 	}
+
+	FILE* inputFilePointer;
+	FILE* outputFilePointer;
+	char inputCharacter;
+//	pid_t childPid = fork();
+
+	inputFilePointer = fopen(fileName, "r");
+
+	if (inputFilePointer == NULL) {
+		printf("Bad file! %s cannot be opened", inputFilePointer);
+		return EXIT_FAILURE;
+	}
+
+	//TODO: Read one line from a fil
+	do
+	{
+		inputCharacter = fgetc(inputFilePointer);
+		printf("InputCharacter: %s", inputCharacter);
+		if (inputCharacter == EOF) break;
+
+	} while (inputCharacter != EOF);
+
+
+	//TODO: Reverse the order
+		//TODO: Put numbers in an array
+		//TODO: Reverse it.
+		//TODO: Write them using pid : numbers
+
 }
