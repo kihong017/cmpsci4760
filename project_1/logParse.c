@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 	do
 	{
 		inputCharacter = fgetc(inputFilePointer);
-		printf("InputCharacter: %s", inputCharacter);
+		printf("%c", inputCharacter);
 		if (inputCharacter == EOF) break;
 
 	} while (inputCharacter != EOF);
