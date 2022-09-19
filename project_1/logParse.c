@@ -2,6 +2,7 @@
  *  Author: Daniel Park
  *  Class: CMP_SCI_4760_002
  *  Project 1
+ *  9 / 18 / 2022
  *  The goal of this project is to become familiar
  *  with the environment in opsys while practicing system calls.
  *  This project also requires demonstrating proficiency in the use of
@@ -16,6 +17,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+void help();
+void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer);
+void childProcess(FILE* inputFilePointer, FILE* outputFilePointer);
+
 void help()
 {
 	printf("The inputs for this program are: \n");
@@ -28,7 +33,7 @@ void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
 {
 	char line[250];
 	int numberOfChild = 0;
-	int parentPid = 0;
+	int parentPid     = 0;
 	int childPids[numberOfChild];
 
 	fgets(line, sizeof(line), inputFilePointer);
@@ -41,7 +46,7 @@ void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
 		if (childPid == 0)
 		{
 			childProcess(inputFilePointer, outputFilePointer);
-			exit(0);
+			exit(EXIT_SUCCESS);
 		}
 		else
 		{
@@ -51,6 +56,8 @@ void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
 				parentPid = getpid();
 			}
 
+			// This code will jump two lines, so that the two lines after
+			// what was processsed will be read
             if (!feof(inputFilePointer))
             {
                 fgets(line, sizeof(line), inputFilePointer);
@@ -73,34 +80,33 @@ void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
 
 void childProcess(FILE* inputFilePointer, FILE* outputFilePointer)
 {
-
 	char line[250];
-	int* childArray = 0;
-	char *numberToken = 0;
+	int* childArray     = 0;
+	char *numberToRead  = 0;
 	int numberOfNumbers = 0;
 
+	// Reading the number of integers, creating an array
 	fgets(line, sizeof(line), inputFilePointer);
-	printf("number of line %d ", atoi(line));
 	numberOfNumbers = atoi(line);
+	childArray = malloc(sizeof(int) * numberOfNumbers);
 
-	childArray = malloc(sizeof(int)*numberOfNumbers);
-
+	// Reading the integers and put them in the array
 	fgets(line, sizeof(line), inputFilePointer);
-	numberToken = strtok(line, " ");
+	numberToRead = strtok(line, " ");
 
 	int i = 0;
-	while (numberToken != NULL)
+	while (numberToRead != NULL)
 	{
-		childArray[i] = atoi(numberToken);
+		childArray[i] = atoi(numberToRead);
 		i++;
 		if (i > numberOfNumbers)
 		{
-			printf("Number in a line exceeds the input number\n");
-			break;
+			printf("Number of integer on a line exceeds the expected number\n");
+			exit(EXIT_FAILURE);
 		}
 		else
-		{ //
-			numberToken = strtok(NULL, " ");
+		{
+			numberToRead = strtok(NULL, " ");
 		}
 	}
 
@@ -118,6 +124,10 @@ int main(int argc, char** argv)
 {
 	char* fileName = "input.dat";
 	char* outputFileName = "output.dat";
+	char perrorOutput[100];
+
+	strcpy(perrorOutput, argv[0]);
+	strcat(perrorOutput, ": Error: ");
 
 	int option;
 	while ( (option = getopt(argc, argv, "hi:o:")) != -1 )
@@ -132,7 +142,6 @@ int main(int argc, char** argv)
 				fileName = optarg;
 				break;
 			case 'o':
-				printf("came into O");
 				outputFileName = optarg;
 				break;
 			case '?':
@@ -155,7 +164,8 @@ int main(int argc, char** argv)
 
 	if (inputFilePointer == NULL) {
 		printf("File does not exist or not readable\n");
-		return EXIT_FAILURE;
+		perror(perrorOutput);
+		exit(EXIT_FAILURE);
 	 }
 
 	protocolHandler(inputFilePointer, outputFilePointer);
