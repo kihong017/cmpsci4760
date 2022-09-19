@@ -9,13 +9,109 @@
  */
 
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
-void help() {
+void help()
+{
 	printf("The inputs for this program are: \n");
-	printf("fileName (output) Series of numbers (ex: ./mathwait tempfile.txt 32 9 10 -13) \n");
+	printf("-h  : To see help message \n");
+	printf("-i inputfilename  : To set the input file name  (Default: input.dat) \n");
+	printf("-o outputfilename : To set the output file name (Default: output.dat) \n");
+}
+
+void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
+{
+	char line[250];
+	int numberOfChild = 0;
+	int parentPid = 0;
+	int childPids[numberOfChild];
+
+	fgets(line, sizeof(line), inputFilePointer);
+	numberOfChild = atoi(line);
+
+	int i;
+	for (i = 0; i < numberOfChild; i++)
+	{
+		pid_t childPid = fork();
+		if (childPid == 0)
+		{
+			childProcess(inputFilePointer, outputFilePointer);
+			exit(0);
+		}
+		else
+		{
+			wait(NULL);
+			if (i == 0)
+			{
+				parentPid = getpid();
+			}
+
+            if (!feof(inputFilePointer))
+            {
+                fgets(line, sizeof(line), inputFilePointer);
+                fgets(line, sizeof(line), inputFilePointer);
+            }
+			printf("Child: %d\n", childPid);
+			childPids[i] = childPid;
+		}
+	}
+
+	fprintf(outputFilePointer, "All children were: ");
+	for (i = 0; i < numberOfChild; i++)
+	{
+		fprintf(outputFilePointer, "%d ", childPids[i]);
+	}
+	fprintf(outputFilePointer, "\nParent PID: %d \n", parentPid);
+
+	return;
+}
+
+void childProcess(FILE* inputFilePointer, FILE* outputFilePointer)
+{
+
+	char line[250];
+	int* childArray = 0;
+	char *numberToken = 0;
+	int numberOfNumbers = 0;
+
+	fgets(line, sizeof(line), inputFilePointer);
+	printf("number of line %d ", atoi(line));
+	numberOfNumbers = atoi(line);
+
+	childArray = malloc(sizeof(int)*numberOfNumbers);
+
+	fgets(line, sizeof(line), inputFilePointer);
+	numberToken = strtok(line, " ");
+
+	int i = 0;
+	while (numberToken != NULL)
+	{
+		childArray[i] = atoi(numberToken);
+		i++;
+		if (i > numberOfNumbers)
+		{
+			printf("Number in a line exceeds the input number\n");
+			break;
+		}
+		else
+		{ //
+			numberToken = strtok(NULL, " ");
+		}
+	}
+
+	fprintf(outputFilePointer, "%d: ", getpid());
+	for (i = numberOfNumbers-1; i >= 0; i--)
+	{
+		fprintf(outputFilePointer, "%d ", childArray[i]);
+	}
+	fprintf(outputFilePointer, "\n");
+
+	free(childArray);
 }
 
 int main(int argc, char** argv)
@@ -23,61 +119,49 @@ int main(int argc, char** argv)
 	char* fileName = "input.dat";
 	char* outputFileName = "output.dat";
 
-	if (argc == 2)
+	int option;
+	while ( (option = getopt(argc, argv, "hi:o:")) != -1 )
 	{
-		int option;
-		while ( (option = getopt(argc, argv, "hi:o:")) != -1 )
+		switch(option)
 		{
-			switch(option)
-			{
-				case 'h':
-					help();
-					return EXIT_SUCCESS;
-					break;
-				case 'i':
-					fileName = optarg;
-					break;
-				case 'o':
-					outputFileName = optarg;
-					break;
-				case '?':
-					if (isprint (optopt))
-					   fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-					else
-					   fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
-					return EXIT_FAILURE;
-				default:
-					help();
-					return EXIT_SUCCESS;
-			}
+			case 'h':
+				help();
+				return EXIT_SUCCESS;
+				break;
+			case 'i':
+				fileName = optarg;
+				break;
+			case 'o':
+				printf("came into O");
+				outputFileName = optarg;
+				break;
+			case '?':
+				if (isprint (optopt))
+				   fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+				else
+				   fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+				return EXIT_FAILURE;
+			default:
+				help();
+				return EXIT_SUCCESS;
 		}
 	}
 
 	FILE* inputFilePointer;
 	FILE* outputFilePointer;
-	char inputCharacter;
-//	pid_t childPid = fork();
 
 	inputFilePointer = fopen(fileName, "r");
+	outputFilePointer = fopen(outputFileName, "a+");
 
 	if (inputFilePointer == NULL) {
-		printf("Bad file! %s cannot be opened", inputFilePointer);
+		printf("File does not exist or not readable\n");
 		return EXIT_FAILURE;
-	}
+	 }
 
-	//TODO: Read one line from a fil
-	do
-	{
-		inputCharacter = fgetc(inputFilePointer);
-		printf("%c", inputCharacter);
-		if (inputCharacter == EOF) break;
+	protocolHandler(inputFilePointer, outputFilePointer);
 
-	} while (inputCharacter != EOF);
+	fclose(inputFilePointer);
+	fclose(outputFilePointer);
 
-
-	//TODO: Reverse the order
-		//TODO: Put numbers in an array
-		//TODO: Reverse it.
-		//TODO: Write them using pid : numbers
-
+	return EXIT_SUCCESS;
 }
