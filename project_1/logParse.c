@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 
 void help();
-void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer);
+void protocolHandler(char* fileName, char* outputFileName);
 void childProcess(FILE* inputFilePointer, FILE* outputFilePointer);
 
 void help()
@@ -29,12 +29,20 @@ void help()
 	printf("-o outputfilename : To set the output file name (Default: output.dat) \n");
 }
 
-void protocolHandler(FILE* inputFilePointer, FILE* outputFilePointer)
+void protocolHandler(char* fileName, char* outputFileName)
 {
 	char line[250];
 	int numberOfChild = 0;
 	int parentPid     = 0;
 	int childPids[numberOfChild];
+
+	FILE* inputFilePointer;
+	FILE* outputFilePointer;
+
+	// moved fopen here again, due to Opsys environment throwing error
+	// if these pointers are declared in main and passed as arguments
+	inputFilePointer = fopen(fileName, "r");
+	outputFilePointer = fopen(outputFileName, "a+");
 
 	fgets(line, sizeof(line), inputFilePointer);
 	numberOfChild = atoi(line);
@@ -166,9 +174,11 @@ int main(int argc, char** argv)
 		printf("File does not exist or not readable\n");
 		perror(perrorOutput);
 		exit(EXIT_FAILURE);
-	 }
+	}
 
-	protocolHandler(inputFilePointer, outputFilePointer);
+	fclose(inputFilePointer);
+
+	protocolHandler(fileName, outputFileName);
 
 	fclose(inputFilePointer);
 	fclose(outputFilePointer);
