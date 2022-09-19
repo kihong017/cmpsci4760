@@ -1,0 +1,42 @@
+CMP SCI 4760 Operating Systems - Project 1
+
+The goal of this project is to become familiar with the environment in opsys while practicing system calls.
+ This project also requires demonstrating proficiency in the use of perror and getopt in this submission.
+
+The program can be executed with following:
+  
+  chain [-h] [-i inputfilename] [-o outputfilename]  
+
+  -h                : Shows help message
+  -i intputfilename : [Optional] Specifies the input file. If not specified, 'input.dat' will be used
+  -o outputfilename : [Optional] Specifies the output file. If not specified, 'output.dat' will be used
+
+
+Input file Format:
+
+  3              (Total number of loops)
+  6              (Number of integer to process on the next line)
+  3 6 107 8 1 3  (Integers to process)
+  4              (Number of integer to process on the next line)
+  1 3 50 4       (Integers to process)
+  (Repeat)
+  .
+  .
+  .
+
+
+How to test the program:
+
+  1.  Go to the directory where logParse.c is located
+
+  2.  Compile using 'make'. This will generate an executable 'logParse'.
+
+  2.1 Can delete the executable using 'make clean'
+
+  3.  Use './logParse' To execute the file using the default filenames
+
+  3.1 Use './logParse -i filename' To execute the file using the specified input file
+
+  3.2 Use './logParse -o filename' To execute the file using the specified output file
+
+  3.3 Use './logParse -i inputname -o outputname' To execute the file using the specified input and output file
