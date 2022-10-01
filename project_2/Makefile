@@ -1,16 +1,26 @@
-CC		     = gcc
-CFLAGS		 = -g -Wall
-TARGET       = master
-OBJECTS      = master.o slave.o
-C_PRGMS      = master.c slave.c
+CC		      = gcc
+CFLAGS		  = -g -Wall
+MASTER_TARGET = master
+MASTER_OBJ    = master.o
+MASTER_C      = master.c
+SLACE_TARGET  = slave
+SLAVE_OBJ     = slave.o
+SLAVE_C       = slave.c
 
-.SUFFIXES: .c .o
 
-$(OBJECTS): $(C_PRGMS)
-	$(CC) $(CFLAGS) $(C_PRGMS) -o $(TARGET)
+all: $(MASTER_TARGET) $(SLACE_TARGET)
 
-.c.o:
-	$(CC) -c $(CFLAGS) $<
+$(MASTER_TARGET): $(MASTER_OBJ)
+	$(CC) -o $(MASTER_TARGET) $(MASTER_OBJ)
+
+$(SLACE_TARGET): $(SLAVE_OBJ)
+	$(CC) -o $(SLACE_TARGET) $(SLAVE_OBJ)
+
+$(MASTER_OBJ): $(MASTER_C)
+	$(CC) -c $(MASTER_C)
+
+$(SLAVE_OBJ): $(SLAVE_C)
+	$(CC) -c $(SLAVE_C)
 
 clean:
-	rm -rf $(TARGET) *.o *~
+	rm -rf $(MASTER_TARGET) $(MASTER_OBJ) $(SLACE_TARGET) $(SLAVE_OBJ) cstest logfile logfile.* *.o *~
