@@ -7,20 +7,7 @@
  *  with concurrent processing in Linux using shared memory
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/wait.h>
-
-#define MAX_NUM_SLAVE 20
-#define SHMKEY 859047
-#define BUFF_SZ	sizeof ( int )
-
-void help();
+#include "master.h"
 
 void help()
 {
@@ -32,29 +19,83 @@ void help()
 	printf(" n is the number of slave processes at a time. n never exceeds 20");
 }
 
+void callSlaves(int numOfSlaves)
+{
+	//3. Execute the slave processes and wait for all of them to terminate.
+	int i ;
+	for (i = 1; i <= numOfSlaves; i++)
+	{
+		printf("%d\n", i);
+		pid_t childPid = fork();
+		if (childPid == 0)
+		{
+			char arg1[10];
+			sprintf(arg1, "%d", i);
+			execl("./slave", "./slave", arg1, (char*)0);
+			exit(EXIT_SUCCESS);
+		}
+	}
+
+	for (i = 1; i <= numOfSlaves; i++)
+	{
+        int status = 0;
+        pid_t childpid = wait(&status);
+        printf("Child %d is finished. \n", (int)childpid);
+	}
+}
+
+void timeout()
+{
+	printf("Time out, so killing all the processes and shm");
+	terminate();
+	return;
+}
+
+void interrupt()
+{
+	printf("Interrupt, so killing all the processes and shm");
+	terminate();
+}
+
+void terminate()
+{
+	time_t current_time;
+	struct tm * time_info;
+	char timeString[9];  // space for "HH:MM:SS\0"
+
+	time(&current_time);
+	time_info = localtime(&current_time);
+
+	strftime(timeString, sizeof(timeString), "%H:%M:%S", time_info);
+
+	FILE* logfile = fopen("logfile", "a+");
+	fprintf(logfile, "Terminated at %s\n", timeString);
+	fclose(logfile);
+
+    int shmid = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
+    shmctl(shmid, IPC_RMID,NULL);
+
+	kill(0, SIGKILL);
+}
+
 int main(int argc, char** argv)
 {
-	//Write master that runs up to n slave processes at a time. Make sure that n never exceeds 20
-	//
-	//Start master by
-	//typing the following command:
-	//
-	//master -t ss n
-	//
-	//where ss is the maximum time in seconds (default 100 seconds) after which the process should terminate itself if not
-	//completed.
-	//
-	//Implement master as follows:
-	//
-	//1. Check for the command line argument and output a usage message if the argument is not appropriate.
-	//   If n is more than 20, issue a warning and limit n to 20.
-	//   It will be a good idea to #define the maximum value of n or keep it as a configurable.
 	int numOfSlaves = MAX_NUM_SLAVE;
 	int maxTimeToRunProcess = 100;
 	char perrorOutput[100];
 
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
+
+	if (argc >= 4) {
+		numOfSlaves = atoi(argv[3]);
+		if (numOfSlaves > MAX_NUM_SLAVE)
+		{
+			printf("Number of slaves cannot be bigger than 20, setting it back to 20\n");
+			numOfSlaves = MAX_NUM_SLAVE;
+		}
+		printf("Number of slaves : %d\n", numOfSlaves);
+	}
 
 	int option;
 	while ( (option = getopt(argc, argv, "ht:")) != -1 )
@@ -66,11 +107,8 @@ int main(int argc, char** argv)
 				return EXIT_SUCCESS;
 				break;
 			case 't':
-				//TODO: Find a way to deal with multiple input
-//				numOfSlaves = atoi(optarg);
-//				printf("maximum time in seconds: %d\n", atoi(optarg));
-//				printf("Number of slaves: %c\n", atoi(argv[1]));
-//				if (numOfSlaves > MAX_NUM_SLAVE) printf("Number of slaves cannot be bigger than 20, setting it to 20");
+				maxTimeToRunProcess = atoi(optarg);
+				printf("maximum time in seconds: %d\n", maxTimeToRunProcess);
 				break;
 			case '?':
 				if (isprint (optopt))
@@ -93,17 +131,13 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
     }
 
-    char * paddr = ( char * )( shmat ( shmid, 0, 0 ) );
-    int * pint = ( int * )( paddr );
+    signal(SIGINT, interrupt);
+    signal(SIGALRM, timeout);
+    alarm(maxTimeToRunProcess); // specified number of seconds (default: 100).
 
-	//3. Execute the slave processes and wait for all of them to terminate.
-	sleep ( 2 );
-
-	//4. Start a timer for specified number of seconds (default: 100). If all children have not terminated by then, terminate the children.
-
+    callSlaves(numOfSlaves);
 
 	//5. Deallocate shared memory and terminate.
-    shmdt(pint);
-    shmctl(shmid,IPC_RMID,NULL);
+    shmctl(shmid, IPC_RMID,NULL);
 
 }
