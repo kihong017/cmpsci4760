@@ -72,8 +72,10 @@ void terminate()
 	fprintf(logfile, "Terminated at %s\n", timeString);
 	fclose(logfile);
 
-    int shmid = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
-    shmctl(shmid, IPC_RMID,NULL);
+    int shmid1 = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
+    int shmid2 = shmget ( SHMKEY2, BUFF_SZ, 0777 | IPC_CREAT );
+    shmctl(shmid1, IPC_RMID,NULL);
+    shmctl(shmid2, IPC_RMID,NULL);
 
 	kill(0, SIGKILL);
 }
@@ -123,13 +125,27 @@ int main(int argc, char** argv)
 	}
 
 	//2. Allocate shared memory and initialize it appropriately.
-    int shmid = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
-    if ( shmid == -1 )
+    int shmid1 = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
+    int shmid2 = shmget ( SHMKEY2, BUFF_SZ, 0777 | IPC_CREAT );
+
+    if ( shmid1 == -1 || shmid2 == -1 )
     {
 		printf("master: Error in shmget \n");
 		perror(perrorOutput);
 		exit(EXIT_FAILURE);
     }
+
+    int* turn = ( int * )( shmat ( shmid1, 0, 0 ) );
+    int* flag = ( int * )( shmat ( shmid2, 0, 0 ) );
+    *turn = 1;
+
+    int j;
+    for (int j = 1; j <= 20; j++)
+    {
+    	flag[j] = IDLE;
+    }
+
+    shmdt(turn);
 
     signal(SIGINT, interrupt);
     signal(SIGALRM, timeout);
@@ -138,6 +154,7 @@ int main(int argc, char** argv)
     callSlaves(numOfSlaves);
 
 	//5. Deallocate shared memory and terminate.
-    shmctl(shmid, IPC_RMID,NULL);
+    shmctl(shmid1, IPC_RMID,NULL);
+    shmctl(shmid2, IPC_RMID,NULL);
 
 }
