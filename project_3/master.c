@@ -4,7 +4,7 @@
  *  Project 3
  *  10 / 12 / 2022
  *  The goal of this homework is to become familiar with semaphores in Linux.
- *  Used the semaphore source from following: https://pubs.opengroup.org/onlinepubs/009695299/functions/semop.html
+ *
  */
 
 #include "master.h"
@@ -45,14 +45,14 @@ void callSlaves(int numOfSlaves)
 
 void timeout()
 {
-	printf("Time out, so killing all the processes, semaphores, and shm");
+	printf("\nTime out, so killing all the processes, semaphores, and shm\n");
 	terminate();
 	return;
 }
 
 void interrupt()
 {
-	printf("Interrupt, so killing all the processes, semaphores, and shm");
+	printf("\nInterrupt, so killing all the processes, semaphores, and shm\n");
 	terminate();
 }
 
@@ -61,6 +61,8 @@ void terminate()
 	time_t current_time;
 	struct tm * time_info;
 	char timeString[9];  // space for "HH:MM:SS\0"
+	key_t semkey;
+	int semid;
 
 	time(&current_time);
 	time_info = localtime(&current_time);
@@ -71,14 +73,9 @@ void terminate()
 	fprintf(logfile, "Terminated at %s\n", timeString);
 	fclose(logfile);
 
-    int shmid1 = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
-    int shmid2 = shmget ( SHMKEY2, BUFF_SZ, 0777 | IPC_CREAT );
-    shmctl(shmid1, IPC_RMID,NULL);
-    shmctl(shmid2, IPC_RMID,NULL);
-
-    //TODO: Terminate semaphore
-
-	kill(0, SIGKILL);
+	semkey = ftok("/tmp", 'E');
+	semid = semget(semkey, 1, 0666 | IPC_CREAT);
+    semctl(semid, 0, IPC_RMID);
 }
 
 int main(int argc, char** argv)
@@ -88,7 +85,6 @@ int main(int argc, char** argv)
 	char perrorOutput[100];
 	key_t semkey;
 	int semid;
-	struct sembuf sbuf;
 
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
@@ -130,9 +126,6 @@ int main(int argc, char** argv)
 	}
 
 	//2. Allocate any shared memory needed as well as semaphores, and initialize them appropriately.
-	//TODO: Allocate semaphore
-	//TODO: Use ftok to generate keys.
-
 	/* Get unique key for semaphore. */
 	semkey = ftok("/tmp", 'E');
 	if (semkey == (key_t) -1)
@@ -142,10 +135,27 @@ int main(int argc, char** argv)
 	    exit(EXIT_FAILURE);
 	}
 
+	// Creating one semaphore
+	union semun
+	{
+		int                  val;
+		struct   semid_ds   *buf;
+		unsigned short int  *arrary;
+	}  arg;
+
 	semid = semget(semkey, 1, 0666 | IPC_CREAT);
+	printf("semid in master : %d\n", semid);
 	if (semid == -1)
 	{
 	    printf("Error during semget\n");
+	    perror(perrorOutput);
+	    exit(EXIT_FAILURE);
+	}
+
+	arg.val  =  1;
+	if ( semctl(semid, 0, SETVAL, arg ) == -1 )
+	{
+	    printf("Error during semctl SETVAL\n");
 	    perror(perrorOutput);
 	    exit(EXIT_FAILURE);
 	}
@@ -157,8 +167,5 @@ int main(int argc, char** argv)
     callSlaves(numOfSlaves);
 
 	//5. Deallocate semaphore, shared memory and terminate.
-    semctl();
-    shmctl(shmid1, IPC_RMID,NULL);
-    shmctl(shmid2, IPC_RMID,NULL);
-
+    semctl(semid, 0, IPC_RMID);
 }
