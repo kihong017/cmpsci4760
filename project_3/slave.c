@@ -46,62 +46,49 @@ void writeToLog(char* stage, int processNumber)
 int main(int argc, char** argv)
 {
 	char perrorOutput[100];
-	srand(getpid());
 	int currentProcess = atoi(argv[1]);
 	int currentTurn;
+	srand(getpid());
+	key_t semkey;
+	int semid;
+    struct sembuf sem_wait   = {0, -1, SEM_UNDO};
+    struct sembuf sem_signal = {0,  1, SEM_UNDO};
+
+	semkey = ftok("/tmp", 'E');
+	if (semkey == (key_t) -1)
+	{
+	    printf("Error during ftok\n");
+	    perror(perrorOutput);
+	    exit(EXIT_FAILURE);
+	}
+
+	semid = semget(semkey, 1, 0666 | IPC_CREAT);
+	if (semid == -1)
+	{
+	    printf("Error during semget\n");
+	    perror(perrorOutput);
+	    exit(EXIT_FAILURE);
+	}
 
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
 
-    int shmid1 = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
-    int shmid2 = shmget ( SHMKEY2, BUFF_SZ, 0777 | IPC_CREAT );
-
-    int* turn = ( int * )( shmat ( shmid1, 0, 0 ) );
-    int* flag = ( int * )( shmat ( shmid2, 0, 0 ) );
-
 	int i;
 	for ( i = 0; i < 5; i++ )
 	{
-		//	execute code to enter critical section;
+		printf("semid in slave Process: %d, Sem id: %d\n", currentProcess, semid);
 
-		// TODO: Replace this with semaphore
-	    if ( shmid1 == -1 || shmid2 == -1 )
+		// P()
+	    if (semop(semid, &sem_wait, 1) == -1)
 	    {
-			printf("slave: Error in shmget \n");
-			perror(perrorOutput);
-			exit(EXIT_FAILURE);
+		    printf("Error during semop to wait\n");
+		    perror(perrorOutput);
+		    exit(EXIT_FAILURE);
 	    }
-
-	    do
-	    {
-			flag[currentProcess] = WANT_IN;
-			currentTurn = *turn;
-			while ( currentTurn != currentProcess )
-			{
-				currentTurn = ( flag[currentTurn] != IDLE ) ? *turn : ( currentTurn + 1 ) % MAX_NUM_SLAVE;
-			}
-
-			// Declare intention to enter critical section
-			flag[currentProcess] = IN_CS;
-
-			// Check that no one else is in critical section
-			int j;
-			for ( j = 1; j <= MAX_NUM_SLAVE; j++ )
-			{
-				if ( ( j != i ) && ( flag[j] == IN_CS ) )
-				{
-					break;
-				}
-			}
-
-	    } while ( *turn != currentProcess && flag[*turn] != IDLE );
-
-	    *turn = currentProcess;
 		writeToLog("enter", currentProcess);
 
 	    int waitingTime;
 
-	    printf("Processing child %d\n", currentProcess);
 	    waitingTime = (rand() % 3) + 1;
 	    sleep(waitingTime);
 
@@ -110,20 +97,15 @@ int main(int argc, char** argv)
 	    waitingTime = (rand() % 3) + 1;
 	    sleep(waitingTime);
 
-	    //	execute code to exit critical section;
-	    currentTurn = (*turn + 1) % MAX_NUM_SLAVE;
-        while (flag[currentTurn] == IDLE)
-        {
-        	currentTurn = (currentTurn + 1) % MAX_NUM_SLAVE;
-        }
-        // Assign turn to next waiting process; change own flag to idle
-        *turn = currentTurn;
-        flag[currentProcess] = IDLE;
-
+	    // V()
+	    if (semop(semid, &sem_signal, 1) == -1)
+	    {
+		    printf("Error during semop to signal\n");
+		    perror(perrorOutput);
+		    exit(EXIT_FAILURE);
+	    }
 	    writeToLog("exit", currentProcess);
 	}
 
-    shmdt(turn);
-    shmdt(flag);
 	return EXIT_SUCCESS;
 }
