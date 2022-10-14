@@ -20,16 +20,10 @@
 #include <sys/shm.h>
 #include <time.h>
 
-#define SHMKEY 859047
-#define SHMKEY2 859048
 #define BUFF_SZ	sizeof ( int )
-#define IDLE 0
-#define WANT_IN 1
-#define IN_CS 2
 #define MAX_NUM_SLAVE 20
 
 void critical_section(int processNumber);
 void writeToLog(char* stage, int processNumber);
-
 
 #endif /* PROJECT_3_SLAVE_H_ */

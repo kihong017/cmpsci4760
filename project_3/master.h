@@ -18,18 +18,12 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <time.h>
 
 #define MAX_NUM_SLAVE 20
-#define SHMKEY 859047
-#define SHMKEY2 859048
 #define BUFF_SZ	sizeof ( int )
-#define IDLE 0
-#define WANT_IN 1
-#define IN_CS 2
 
 void help();
 void callSlaves(int numOfSlaves);
