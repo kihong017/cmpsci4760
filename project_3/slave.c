@@ -1,4 +1,9 @@
-
+/*
+ * slave.c
+ *
+ *  Created on: Oct 13, 2022
+ *      Author: Daniel Park
+ */
 #include "slave.h"
 
 void critical_section(int processNumber)

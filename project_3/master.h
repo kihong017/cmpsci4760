@@ -2,7 +2,7 @@
  * master.h
  *
  *  Created on: Oct 12, 2022
- *      Author: kihong.park
+ *      Author: Daniel Park
  */
 
 #ifndef PROJECT_3_MASTER_H_

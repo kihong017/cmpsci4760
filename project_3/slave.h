@@ -2,7 +2,7 @@
  * slave.h
  *
  *  Created on: Oct 13, 2022
- *      Author: kihong.park
+ *      Author: Daniel Park
  */
 
 #ifndef PROJECT_3_SLAVE_H_
