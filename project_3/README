@@ -1,6 +1,6 @@
-CMP SCI 4760 Operating Systems - Project 2
+CMP SCI 4760 Operating Systems - Project 3
 
-The goal of this homework is to become familiar with concurrent processing in Linux using shared memory
+The goal of this homework is to become familiar with semaphores in Linux.
 
 The program can be executed with following:
   
