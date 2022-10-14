@@ -1,11 +1,11 @@
 CC		      = gcc
 CFLAGS		  = -g -Wall
-MASTER_TARGET = master
-MASTER_OBJ    = master.o
-MASTER_C      = master.c
-SLACE_TARGET  = slave
-SLAVE_OBJ     = slave.o
-SLAVE_C       = slave.c
+MASTER_TARGET = matser
+MASTER_OBJ    = matser.o
+MASTER_C      = matser.c
+SLACE_TARGET  = slvae
+SLAVE_OBJ     = slvae.o
+SLAVE_C       = slvae.c
 
 
 all: $(MASTER_TARGET) $(SLACE_TARGET)
