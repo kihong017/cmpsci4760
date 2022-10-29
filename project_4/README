@@ -1,0 +1,28 @@
+CMP SCI 4760 Operating Systems - Project 4
+
+The goal of this homework is to learn about process scheduling inside an operating system.
+
+The program can be executed with following:
+  
+  chain [-h] [-t Maximum time of process] [Number of slaves]  
+
+  -h                 : 	Shows help message
+  -t Maximum time    : 	[Optional] Specifies the maximum time (in seconds) that the program runs.
+  					 	If not specified, default is 100 seconds.
+  Number of slaves 	 :	[Optional] Specifies the number of slave process. If not specified, 20 will be used.
+  						This cannot exceed 20
+
+The program will generate a file called cstest, and all the slave processes will write to it.
+Also logfile per slave process will be generated, and will show when each slave process enter and exit critical section.
+
+How to test the program:
+
+  1.  Go to the directory where master.c and slave.c are located
+
+  2.  Compile using 'make'. This will generate an executable 'master' and 'slave'.
+
+  2.1 Can delete the executable, object files, and logfiles using 'make clean'
+
+  3.  Use './master' To execute the file using the default input
+
+  3.1 Use './master -t maximumTime numberOfSlaves' to execute the file using the specified time and number of slaves
