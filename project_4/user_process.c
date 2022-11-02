@@ -1,10 +1,10 @@
 /*
- * userprocess.c
+ * user_process.c
  *
  *  Created on: Oct 127 2022
  *      Author: Daniel Park
  */
-#include "userprocess.h"
+#include "user_process.h"
 
 void writeToLog(char* stage, int processNumber)
 {
