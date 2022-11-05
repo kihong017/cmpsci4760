@@ -18,11 +18,31 @@
 #include <sys/wait.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
 #include <time.h>
 
 #define BUFF_SZ	sizeof ( int )
-#define MAX_NUM_SLAVE 20
+#define PROB_TERMINATE 1
 
-void writeToLog(char* stage, int processNumber);
+#define MAX_NUM_USER_PROC 18
+
+void timeout();
+void interrupt();
+void terminate();
+
+typedef struct
+{
+    long mesg_type;
+    int time_slice;
+} message;
+
+typedef struct
+{
+	unsigned int total_used_cpu_time;
+	unsigned int total_system_time;
+	unsigned int total_last_burst_time;
+	unsigned int local_sim_pid;
+	unsigned int proc_priority;
+} proc_ctrl_blck;
 
 #endif /* PROJECT_4_USER_PROCESS_H_ */
