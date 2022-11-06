@@ -23,7 +23,7 @@
 
 #define BUFF_SZ	sizeof ( int )
 #define PROB_TERMINATE 1
-
+#define PARENT_QUEUE_ADDRESS 999
 #define MAX_NUM_USER_PROC 18
 
 void timeout();

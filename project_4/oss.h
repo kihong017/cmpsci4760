@@ -24,19 +24,23 @@
 #include <time.h>
 
 #define MAX_NUM_USER_PROC 18
+#define ONE_SEC_IN_NANO 1000000000
+#define PARENT_QUEUE_ADDRESS 999
 #define BUFF_SZ	sizeof ( int )
 #define TRUE  1
 #define FALSE 0
+#define maxTimeBetweenNewProcsSecs 1
+#define maxTimeBetweenNewProcsNS  0
+#define REAL_TIME_PROC_PERCENTAGE 5
 
-void help();
-struct Queue* priority_queue;
-int  checkToCreateNewProcess(struct Queue* priority_queue);
-void incrementSysClock();
-void timeout();
-void interrupt();
-void terminate();
+#define TOTAL_DISPATCH_RANDOM 0
+#define REAL_OR_USER_RANDOM 1
+#define LOOP_ADVANCE_RANDOM 2
 
-typedef union
+#define USER_PROCESS 0
+#define REAL_TIME 1
+
+typedef struct
 {
 	unsigned int sec;
 	unsigned int nano_sec;
@@ -56,5 +60,16 @@ typedef struct
     long mesg_type;
     int time_slice;
 } message;
+
+struct Queue queue;
+
+void help();
+int  checkToCreateNewProcess(struct Queue* pid_queue, system_clock* sysclock, int last_proc_created_sec, int last_proc_created_ns);
+int  generateRandomNumber(int flag);
+void incrementSysClock(system_clock* sysclock, int seconds, int nano_seconds);
+struct Queue* initPidQueue();
+void timeout();
+void interrupt();
+void terminate();
 
 #endif /* PROJECT_4_OSS_H_ */

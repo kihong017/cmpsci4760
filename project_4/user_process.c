@@ -53,12 +53,12 @@ void terminate()
 int main(int argc, char** argv)
 {
 	printf("In User Process\n");
-	printf("argument : %d\n", atoi(argv[1]));
 	char perrorOutput[100];
 	int current_process_id = atoi(argv[1]);
+	int real_or_normal = atoi(argv[2]);
+
 	printf("current_process_id : %d\n", atoi(argv[1]));
-//	int current_process_id = 1;
-	printf("after current_process_id\n");
+	printf("real_or_normal : %d\n", atoi(argv[2]));
 	key_t oss_msgqueue_key;
 	int oss_msgqueue_id;
 	key_t user_msgqueue_key;
@@ -69,7 +69,6 @@ int main(int argc, char** argv)
 	proc_ctrl_blck *proc_ctrl_table;
 	proc_ctrl_blck proc_ctrl_block;
 
-	printf("before ftok\n");
 	oss_msgqueue_key = ftok("/tmp", 'B');
 	user_msgqueue_key = ftok("/tmp", 'C');
 	process_table_key = ftok("/tmp", 'D');
@@ -93,7 +92,6 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("before proc_ctrl_block\n");
 	proc_ctrl_table = shmat( process_table_id, 0, 0 );
 	proc_ctrl_block = proc_ctrl_table[current_process_id];
 
@@ -106,35 +104,18 @@ int main(int argc, char** argv)
 		// while (!isTerminated)
 		{
 			printf("waiting for message\n");
-//			int turn = msgrcv(msgqueue_id, &msg, sizeof(message), current_process_id+1, IPC_NOWAIT);
-//		    if (semop(semid, &sem_wait, 1) == -1)
-//		    {
-//			    printf("Error during semop to wait\n");
-//			    perror(perrorOutput);
-//			    exit(EXIT_FAILURE);
-//		    }
 			int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), 1, 0);
 			if (msg_rcv != -1)
 			{
 				sleep(5);
-				msg.mesg_type = 100;
-				msg.time_slice = 2;
+				msg.mesg_type = PARENT_QUEUE_ADDRESS;
+				msg.time_slice = 1000000002;
+				//TODO: Need to send back whether the process terminated or not
 
 				printf("User Message sent: %d\n", msg.time_slice);
 				printf("Message Sent\n");
 				msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
-//				break;
 			}
-
-//			    if (semop(semid, &sem_signal, 1) == -1)
-//			    {
-//				    printf("Error during semop to signal\n");
-//				    perror(perrorOutput);
-//				    exit(EXIT_FAILURE);
-//			    }
-//			}
-
-//			printf("User Message receivedL %s\n", msg.mesg_text);
 		}
 
 

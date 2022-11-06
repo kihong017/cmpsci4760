@@ -18,22 +18,90 @@ void help()
 	printf("-l f : f is the name for the log file");
 }
 
-int checkToCreateNewProcess(struct Queue* priority_queue)
+int checkToCreateNewProcess(struct Queue* pid_queue, system_clock* sysclock, int last_proc_created_sec, int last_proc_created_ns)
 {
-	// Check maximum process
+	printf("checkToCreateNewProcess\n");
+	int current_sec = sysclock->sec;
+	int current_ns  = sysclock->nano_sec;
+	int create_process_at_sec = last_proc_created_sec + maxTimeBetweenNewProcsSecs;
+	int create_process_at_ns  = last_proc_created_ns + maxTimeBetweenNewProcsNS;
 
-//	if (lastPidUsed > MAX_NUM_USER_PROC)
-	if (!isEmpty(priority_queue))
+	// Check if pids is avilable
+	if (isEmpty(pid_queue))
+	{
+		return FALSE;
+	}
+	else if (current_sec == 0 && current_ns == 0)
+	{
+		return TRUE;
+	}
+	else if (current_sec > create_process_at_sec || (current_sec == create_process_at_sec && current_ns > create_process_at_ns))
+	{
+		return TRUE;
+	}
+	else
 	{
 		return FALSE;
 	}
 
+	// TODO: If second is the same, then compare nano seconds
+	// TODO: maxTimeBetween (Also, convert to ns)
+
+
 	return TRUE;
 }
 
-void incrementSysClock()
+int generateRandomNumber(int flag)
 {
+	srand(time(NULL) + getpid());
+	printf("Generating flag %d\n", flag);
+	switch (flag)
+	{
+		case TOTAL_DISPATCH_RANDOM:
+			return rand() % (10000 + 1 - 100) + 100;
+			break;
+		case REAL_OR_USER_RANDOM:
+			return rand() % 100 + 1;
+			break;
+		case LOOP_ADVANCE_RANDOM:
+			return rand() % 1000;
+			break;
+		default:
+			return 0;
+			break;
+	}
+}
 
+void incrementSysClock(system_clock* sysclock, int seconds, int nano_seconds)
+{
+	int ns_to_seconds = 0;
+
+	// Handling incoming nano seconds bigger than 1 sec
+	if (nano_seconds >= ONE_SEC_IN_NANO)
+	{
+		ns_to_seconds += nano_seconds / ONE_SEC_IN_NANO;
+		nano_seconds -= ns_to_seconds * ONE_SEC_IN_NANO;
+	}
+	// Handling sysclock nano seconds bigger than 1 sec
+	if (sysclock->nano_sec >= ONE_SEC_IN_NANO)
+	{
+		ns_to_seconds += sysclock->nano_sec / ONE_SEC_IN_NANO;
+		sysclock->nano_sec -= ns_to_seconds * ONE_SEC_IN_NANO;
+	}
+
+	sysclock->sec += seconds + ns_to_seconds;
+	sysclock->nano_sec += sysclock->nano_sec + nano_seconds;
+}
+
+struct Queue* initPidQueue()
+{
+	struct Queue* pids = createQueue(MAX_NUM_USER_PROC);
+	int i;
+	for (i = 1; i <= MAX_NUM_USER_PROC; i++)
+	{
+		enqueue(pids, i);
+	}
+	return pids;
 }
 
 void timeout()
@@ -95,9 +163,12 @@ int main(int argc, char** argv)
 	int process_table_id;
 	proc_ctrl_blck *proc_ctrl_table;
 	int pid_in_use[MAX_NUM_USER_PROC];
-	int lastPidUsed = 1;
 	int line_number = 0;
+	struct Queue* available_pids = initPidQueue();
 	struct Queue* priority_queue = createQueue(100);
+
+	int last_proc_created_sec = 0;
+	int last_proc_created_ns  = 0;
 
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
@@ -175,103 +246,100 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
     }
 
+    printf("After generated %d:%d\n", sysclock->sec, sysclock->nano_sec);
+
     proc_ctrl_table = shmat( process_table_id, 0, 0 );
 
     signal(SIGINT, interrupt);
     signal(SIGALRM, timeout);
     alarm(maxTimeToRunProcess); // specified number of seconds (default: 100).
 
-	// after it cedes control back to oss, oss would update the simulated system clock by the appropriate amount.
-	// This is achieved by generating a random number within the child that will be sent back to oss through
-	// either shared memory or a message queue. In the same fashion,
-	// if oss does something that should take some time if it was a real operating system,
-	//it should increment the clock by a small amount to indicate the time it spent.
-
-	while(1)
+	while(1) // while line number is less than 10000
 	{
-		// generate simPid and control block
-		// put them in the table and priority queue
-
-		if (checkToCreateNewProcess(priority_queue))
+		if (checkToCreateNewProcess(available_pids, sysclock, last_proc_created_sec, last_proc_created_ns))
 		{
-			printf("checktocreatenewprocess == true\n");
 			pid_t childPid = fork();
+			int pid_to_use = dequeue(available_pids);
 			if (childPid == 0)
 			{
+				printf("childPid\n");
 				char arg1[10];
-				sprintf(arg1, "%d", lastPidUsed);
-				execl("./user", "./user", arg1, (char*)0);
-//				execl("./user", "./user", NULL);
-				printf("After execl\n");
+				char arg2[10];
+				printf("before generateRandomNumber\n");
+				int real_or_normal = generateRandomNumber(REAL_OR_USER_RANDOM) <= REAL_TIME_PROC_PERCENTAGE ? REAL_TIME : USER_PROCESS;
+				printf("after generateRandomNumber\n");
+				printf("real_or_normal : %d\n", real_or_normal);
+				sprintf(arg1, "%d", pid_to_use);
+				sprintf(arg2, "%d", real_or_normal);
+				execl("./user", "./user", arg1, arg2, (char*)0);
+//				execl("./user", "./user", arg1, (char*)0);
 			}
 			else
 			{
-				printf("At parent\n");
 				proc_ctrl_blck proc_ctrl_block;
 				proc_ctrl_block.total_used_cpu_time = 0;
 				proc_ctrl_block.total_last_burst_time = 0;
 				proc_ctrl_block.total_system_time = 0;
-				proc_ctrl_block.local_sim_pid = lastPidUsed;
+				proc_ctrl_block.local_sim_pid = pid_to_use;
 				proc_ctrl_block.proc_priority = 0;
 	//			proc_ctrl_block.proc_priority = getPriority();
-				proc_ctrl_table[lastPidUsed] = proc_ctrl_block;
-				enqueue(priority_queue, lastPidUsed);
-				//TODO: Log for generating a process
-				printf("before file write\n");
+				proc_ctrl_table[pid_to_use] = proc_ctrl_block;
+				enqueue(priority_queue, pid_to_use);
 				fprintf(logfile, "OSS: Generating process with PID %d and putting it in queue %d at time %d:%d\n",
-						lastPidUsed, 0, sysclock->nano_sec, sysclock->nano_sec);
+						pid_to_use, 0, sysclock->sec, sysclock->nano_sec);
 				fflush(logfile);
-				lastPidUsed++;
-				int status = 0;
-//				wait(&status);
+				last_proc_created_sec = sysclock->sec;
+				last_proc_created_ns = sysclock->nano_sec;
+				line_number++;
 			}
 
 		}
 		else
+		// else if (there is a process to run)
 		{
+			int total_dispatch_time = generateRandomNumber(TOTAL_DISPATCH_RANDOM);
+			printf("total_dispatch_time %d\n", total_dispatch_time);
+			incrementSysClock(sysclock, 0, total_dispatch_time);
 
+			message msg;
+//			msg.mesg_type = next_pid;
+			msg.mesg_type = 1;
+			msg.time_slice = 2;
 
-				//TODO: Log for dispatching a process with time
-	//			printf("sending message\n");
+			fprintf(logfile, "OSS: Dispatching process with PID %d from queue %d at time %d:%d\n",
+					1, 0, sysclock->sec, sysclock->nano_sec);
+			line_number++;
 
-				message msg;
-				msg.mesg_type = 1;
-				msg.time_slice = 2;
+			fprintf(logfile, "OSS: total time this dispatch was %d nanoseconds\n", total_dispatch_time);
+			line_number++;
+			fflush(logfile);
 
-				fprintf(logfile, "OSS: Dispatching process with PID %d from queue %d at time %d:%d\n",
-						lastPidUsed, 0, sysclock->nano_sec, sysclock->nano_sec);
-				fflush(logfile);
+			// send to child using specific pid
+			msgsnd(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), 0);
 
-				// send to child using specific pid
-				msgsnd(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), 0);
+			// receive from parent's
+			msgrcv(oss_msgqueue_id, &msg, sizeof(message), PARENT_QUEUE_ADDRESS, 0);
 
-				// receive from parent's
-				msgrcv(oss_msgqueue_id, &msg, sizeof(message), 100, 0);
+			fprintf(logfile, "OSS: Receiving that process with PID %d ran for %d nanoseconds\n",
+					1, msg.time_slice);
+			line_number++;
+			fflush(logfile);
 
+			incrementSysClock(sysclock, 0, msg.time_slice);
 
-				fprintf(logfile, "OSS: total time this dispatch was %d nanoseconds\n",
-						msg.time_slice);
-				fflush(logfile);
-				sysclock -> sec = sysclock->sec + msg.time_slice;
+			// TODO: Check using message if the child process is done
+			// TODO: If not done, log addition info, and put it back to queue
+			// TODO: If done, remove from proc table block and then enqueue id back to pid queuce
 
-				//Update clock with values coming in from the message
-
-				//TODO: Log for total time dispatch
-
-	//			printf("OSS Message received: %d\n", msg.time_slice);
-	//			printf("SYSCLOCK current: %d\n", sysclock -> sec);
-				line_number++;
 
 		}
 
-
+		// Advance the logical clock by 1.xx seconds in each iteration of the loop where xx is the number of nanoseconds.
+		incrementSysClock(sysclock, 1, generateRandomNumber(LOOP_ADVANCE_RANDOM));
+		printf("increasing time after one loop\n");
+		//  range [0,5] and [0,1000]
+		// xx will be a random number in the interval [0,1000] to simulate some overhead activity for each iteration.
 	}
-	//it should increment the clock until it is the time when it should launch a process.
-	// It should then set up that process, generate a new time when it will create a new process and then using a message queue or semaphore,
-	// schedule a process to run by sending it a message. It should then wait for a message back from that process that it has finished its task.
-	// If your process table is already full when you go to generate a process, just skip that generation,
-	// but do determine another time in the future to try and generate a new process.
-
 
 	//5. Deallocate semaphore, shared memory and terminate.
 	printf("ctl all\n");
