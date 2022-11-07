@@ -4,25 +4,25 @@ The goal of this homework is to learn about process scheduling inside an operati
 
 The program can be executed with following:
   
-  chain [-h] [-t Maximum time of process] [Number of slaves]  
+  chain [-h] [-t ] [Number of slaves]  
+  oss   [-h] [-s t] [-l f]
 
   -h                 : 	Shows help message
-  -t Maximum time    : 	[Optional] Specifies the maximum time (in seconds) that the program runs.
+  -s Maximum time    : 	[Optional] Specifies the maximum time (in seconds) that the program runs.
   					 	If not specified, default is 100 seconds.
-  Number of slaves 	 :	[Optional] Specifies the number of slave process. If not specified, 20 will be used.
-  						This cannot exceed 20
+  -l logfile name 	 :	[Optional] Specifies the name of the logfile. If not specified, 'logfile' will be used.
 
-The program will generate a file called cstest, and all the slave processes will write to it.
-Also logfile per slave process will be generated, and will show when each slave process enter and exit critical section.
+The program will generate a file called logfile, and oss will write to it.
+The file will show when each process was dispatched and was done processing.
 
 How to test the program:
 
-  1.  Go to the directory where master.c and slave.c are located
+  1.  Go to the directory where oss.c, user_process.c and queue.c are located
 
-  2.  Compile using 'make'. This will generate an executable 'master' and 'slave'.
+  2.  Compile using 'make'. This will generate an executable 'oss' and 'user'.
 
   2.1 Can delete the executable, object files, and logfiles using 'make clean'
 
-  3.  Use './master' To execute the file using the default input
+  3.  Use './oss' To execute the file using the default input
 
-  3.1 Use './master -t maximumTime numberOfSlaves' to execute the file using the specified time and number of slaves
+  3.1 Use './oss -s maximumTime -l logfile name' to execute the file using the specified time and specified logfile name

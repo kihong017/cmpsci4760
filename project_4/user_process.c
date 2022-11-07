@@ -6,16 +6,37 @@
  */
 #include "user_process.h"
 
+int isTerminated()
+{
+	return generateRandomNumber(GET_RANDOM_PERCENTAGE, 0) <= TERMINATE_PROBABILITY ? TRUE : FALSE;
+}
+
+int generateRandomNumber(int flag, int time_slice)
+{
+	switch (flag)
+	{
+		case GET_RANDOM_PERCENTAGE:
+			return rand() % 100 + 1;
+			break;
+		case TIME_SLICE_USAGE_RANDOM:
+			return rand() % time_slice + 1;
+			break;
+		default:
+			return 0;
+			break;
+	}
+}
+
 void timeout()
 {
-	printf("\nTime out, so killing all the processes, semaphores, and shm\n");
+	printf("\nTime out, so killing all the processes, message queues, and shm\n");
 	terminate();
 	return;
 }
 
 void interrupt()
 {
-	printf("\nInterrupt, so killing all the processes, semaphores, and shm\n");
+	printf("\nInterrupt, so killing all the processes, message queues, and shm\n");
 	terminate();
 }
 
@@ -52,13 +73,12 @@ void terminate()
 
 int main(int argc, char** argv)
 {
-	printf("In User Process\n");
+	srand(time(NULL) + getpid());
 	char perrorOutput[100];
 	int current_process_id = atoi(argv[1]);
-	int real_or_normal = atoi(argv[2]);
+	int cpu_or_io = generateRandomNumber(GET_RANDOM_PERCENTAGE, 0) <= 50 ? CPU_BOUND : IO_BOUND;
 
 	printf("current_process_id : %d\n", atoi(argv[1]));
-	printf("real_or_normal : %d\n", atoi(argv[2]));
 	key_t oss_msgqueue_key;
 	int oss_msgqueue_id;
 	key_t user_msgqueue_key;
@@ -69,7 +89,7 @@ int main(int argc, char** argv)
 	proc_ctrl_blck *proc_ctrl_table;
 	proc_ctrl_blck proc_ctrl_block;
 
-	oss_msgqueue_key = ftok("/tmp", 'B');
+	oss_msgqueue_key  = ftok("/tmp", 'B');
 	user_msgqueue_key = ftok("/tmp", 'C');
 	process_table_key = ftok("/tmp", 'D');
 
@@ -80,8 +100,7 @@ int main(int argc, char** argv)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("before msgget\n");
-	oss_msgqueue_id = msgget(oss_msgqueue_key, 0666);
+	oss_msgqueue_id  = msgget(oss_msgqueue_key, 0666);
 	user_msgqueue_id = msgget(user_msgqueue_key, 0666);
 	process_table_id = shmget (process_table_key , sizeof(proc_ctrl_blck) * MAX_NUM_USER_PROC, 0777 | IPC_CREAT );
 
@@ -95,46 +114,40 @@ int main(int argc, char** argv)
 	proc_ctrl_table = shmat( process_table_id, 0, 0 );
 	proc_ctrl_block = proc_ctrl_table[current_process_id];
 
-	printf("proc_ctrl_block pid : %d\n", proc_ctrl_block.local_sim_pid);
-
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
 
-		while (1)
-		// while (!isTerminated)
+	while (1)
+	{
+		printf("user waiting for message\n");
+		int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), current_process_id, 0);
+		if (msg_rcv != -1)
 		{
-			printf("waiting for message\n");
-			int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), 1, 0);
-			if (msg_rcv != -1)
+			msg.mesg_type = PARENT_QUEUE_ADDRESS;
+			if (isTerminated())
 			{
-				sleep(5);
-				msg.mesg_type = PARENT_QUEUE_ADDRESS;
-				msg.time_slice = 1000000002;
-				//TODO: Need to send back whether the process terminated or not
+				msg.is_terminated  = TRUE;
+				msg.is_interrupted = FALSE;
+				msg.time_slice = generateRandomNumber(TIME_SLICE_USAGE_RANDOM, msg.time_slice);
+				msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
+			}
+			else
+			{
+				int interrupted_random_pct = generateRandomNumber(GET_RANDOM_PERCENTAGE, 0);
+				// cpu-bound processes should be very unlikely to get interrupted (so they will usually use up their entire timeslice without getting interrupted).
+				// On the other hand, i/o-bound processes should more likely than not get interrupted before finishing their time slices.
+				int interrupt_percentage = cpu_or_io == CPU_BOUND ? CPU_BOUND_INTERRUPT_PCT : IO_BOUND_INTERRUPT_PCT;
+				int is_interrupted = interrupted_random_pct <= interrupt_percentage ? TRUE : FALSE;
 
-				printf("User Message sent: %d\n", msg.time_slice);
-				printf("Message Sent\n");
+				msg.is_terminated = FALSE;
+				// If not interrupted, use all time slice, if interrupted randomize the number less than time slice
+				msg.is_interrupted = is_interrupted;
+				msg.time_slice = is_interrupted ? generateRandomNumber(TIME_SLICE_USAGE_RANDOM, msg.time_slice) : msg.time_slice;
+
 				msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
 			}
 		}
-
-
-		// TODO: Generate random number: to decide whether to terminate or not
-		// seeding off of some function of the process’ pid (for example, time + pid)
-
-		// TODO: Terminate: If it would terminate, it would of course use some random amount of its timeslice before terminating
-		// indicate to oss that it has decided to terminate and also how much of its timeslice it used
-
-
-		// TODO: Generate random number: to define how much timeslice was used
-
-		/// TODO: Send a message to oss saying how much time they used
-		//        and if they had to use i/o or had to terminate.
-
-
-		// Need to send back with time
-
-
+	}
 
 	return EXIT_SUCCESS;
 }
