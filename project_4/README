@@ -4,7 +4,6 @@ The goal of this homework is to learn about process scheduling inside an operati
 
 The program can be executed with following:
   
-  chain [-h] [-t ] [Number of slaves]  
   oss   [-h] [-s t] [-l f]
 
   -h                 : 	Shows help message
