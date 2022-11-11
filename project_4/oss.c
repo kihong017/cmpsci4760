@@ -298,9 +298,9 @@ int main(int argc, char** argv)
 	{
 		if (checkToCreateNewProcess(available_pids, sysclock, last_proc_created_sec, last_proc_created_ns))
 		{
-			pid_t childPid = fork();
 			int pid_to_use = dequeue(available_pids);
 			int real_or_normal = generateRandomNumber(REAL_OR_USER_RANDOM) <= REAL_TIME_PROC_PERCENTAGE ? REAL_TIME : USER_PROCESS;
+			pid_t childPid = fork();
 			if (childPid == 0)
 			{
 				char arg1[10];
