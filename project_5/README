@@ -1,0 +1,27 @@
+CMP SCI 4760 Operating Systems - Project 4
+
+The goal of this homework is to learn about process scheduling inside an operating system.
+
+The program can be executed with following:
+  
+  oss   [-h] [-s t] [-l f]
+
+  -h                 : 	Shows help message
+  -s Maximum time    : 	[Optional] Specifies the maximum time (in seconds) that the program runs.
+  					 	If not specified, default is 100 seconds.
+  -l logfile name 	 :	[Optional] Specifies the name of the logfile. If not specified, 'logfile' will be used.
+
+The program will generate a file called logfile, and oss will write to it.
+The file will show when each process was dispatched and was done processing.
+
+How to test the program:
+
+  1.  Go to the directory where oss.c, user_process.c and queue.c are located
+
+  2.  Compile using 'make'. This will generate an executable 'oss' and 'user'.
+
+  2.1 Can delete the executable, object files, and logfiles using 'make clean'
+
+  3.  Use './oss' To execute the file using the default input
+
+  3.1 Use './oss -s maximumTime -l logfile name' to execute the file using the specified time and specified logfile name
