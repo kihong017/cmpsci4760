@@ -22,41 +22,52 @@
 #include <time.h>
 
 #define BUFF_SZ	sizeof ( int )
-#define TERMINATE_PROBABILITY 1
 #define PARENT_QUEUE_ADDRESS 999
+#define TERMINATE_CHECK_NS 250000000
+#define TERMINATE_PCT 10
+#define REQUEST_PCT 50
 
 #define NUM_OF_RESOURCES 20
-#define MAX_NUM_USER_PROC 18
+#define MAX_NUM_USER_PROC 15
 #define TRUE  1
 #define FALSE 0
 
-#define CPU_BOUND_INTERRUPT_PCT 5
-#define IO_BOUND_INTERRUPT_PCT 60
-
 #define GET_RANDOM_PERCENTAGE 0
-#define TIME_SLICE_USAGE_RANDOM 1
+#define MAX_CLAIM_RANDOM 1
+#define RESOURCE_ID_RANDOM 2
 
-#define CPU_BOUND 0
-#define IO_BOUND  1
+#define TERMINATE_FLAG 1
+#define REQUEST_FLAG   2
+#define RELEASE_FLAG   3
 
 int  isTerminated();
-int  generateRandomNumber(int flag, int time_slice);
-void timeout();
+int  isRequesting();
+int  generateRandomNumber(int flag);
 void interrupt();
 void terminate();
 
 typedef struct
 {
+	unsigned int sec;
+	unsigned int nano_sec;
+} system_clock;
+
+typedef struct
+{
     long mesg_type;
-    int time_slice;
-    int is_interrupted;
+    int process_id;
+    int resource_id;
+    int action_flag;
+    int mesg_granted;
+    int num_of_resources;
 } message;
 
 typedef struct
 {
-	unsigned int request[NUM_OF_RESOURCES];
-	unsigned int allocation[NUM_OF_RESOURCES];
-	unsigned int release[NUM_OF_RESOURCES];
+	unsigned int request[NUM_OF_RESOURCES * MAX_NUM_USER_PROC];
+	unsigned int allocated[NUM_OF_RESOURCES * MAX_NUM_USER_PROC];
+	unsigned int available[NUM_OF_RESOURCES];
+	unsigned int shareable[NUM_OF_RESOURCES];
 } resource_desc;
 
 #endif /* PROJECT_5_USER_PROCESS_H_ */

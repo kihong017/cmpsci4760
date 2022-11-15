@@ -8,30 +8,31 @@
 
 int isTerminated()
 {
-	return generateRandomNumber(GET_RANDOM_PERCENTAGE, 0) <= TERMINATE_PROBABILITY ? TRUE : FALSE;
+	return generateRandomNumber(GET_RANDOM_PERCENTAGE) <= TERMINATE_PCT;
 }
 
-int generateRandomNumber(int flag, int time_slice)
+int isRequesting()
+{
+	return generateRandomNumber(GET_RANDOM_PERCENTAGE) <= REQUEST_PCT;
+}
+
+int generateRandomNumber(int flag)
 {
 	switch (flag)
 	{
 		case GET_RANDOM_PERCENTAGE:
 			return rand() % 100 + 1;
 			break;
-		case TIME_SLICE_USAGE_RANDOM:
-			return rand() % time_slice + 1;
+		case MAX_CLAIM_RANDOM:
+			return rand() % NUM_OF_RESOURCES + 1;
+			break;
+		case RESOURCE_ID_RANDOM:
+			return rand() % NUM_OF_RESOURCES;
 			break;
 		default:
 			return 0;
 			break;
 	}
-}
-
-void timeout()
-{
-	printf("\nTime out, so killing all the processes, message queues, and shm\n");
-	terminate();
-	return;
 }
 
 void interrupt()
@@ -50,101 +51,165 @@ void terminate()
 	int user_msgqueue_id;
 	key_t sysclock_key;
 	int sysclock_id;
-	key_t process_table_key;
-	int process_table_id;
+	key_t system_data_structure_key;
+	int system_data_structure_id;
 
 	sysclock_key = ftok("/tmp", 'A');
 	oss_msgqueue_key = ftok("/tmp", 'B');
 	user_msgqueue_key = ftok("/tmp", 'C');
-	process_table_key = ftok("/tmp", 'D');
+	system_data_structure_key = ftok("/tmp", 'D');
 
 
     sysclock_id = shmget ( sysclock_key, sizeof(unsigned int), 0777 | IPC_CREAT );
     oss_msgqueue_id = msgget(oss_msgqueue_key, 0666 | IPC_CREAT);
     user_msgqueue_id = msgget(user_msgqueue_key, 0666 | IPC_CREAT);
-	process_table_id = shmget (process_table_key , sizeof(proc_ctrl_blck) * MAX_NUM_USER_PROC, 0777 | IPC_CREAT );
+    system_data_structure_id = shmget (system_data_structure_key , sizeof(resource_desc), 0777 | IPC_CREAT );
 
 	msgctl(oss_msgqueue_id, IPC_RMID,NULL);
 	msgctl(user_msgqueue_id, IPC_RMID,NULL);
     shmctl(sysclock_id, IPC_RMID,NULL);
-    shmctl(process_table_id, IPC_RMID,NULL);
+    shmctl(system_data_structure_id, IPC_RMID,NULL);
     kill(0, SIGKILL);
 }
 
 int main(int argc, char** argv)
 {
+	printf("Inside the user process\n");
 	srand(time(NULL) + getpid());
 	char perrorOutput[100];
 	int current_process_id = atoi(argv[1]);
-	int cpu_or_io = generateRandomNumber(GET_RANDOM_PERCENTAGE, 0) <= 50 ? CPU_BOUND : IO_BOUND;
 
 	printf("current_process_id : %d\n", atoi(argv[1]));
 	key_t oss_msgqueue_key;
 	int oss_msgqueue_id;
 	key_t user_msgqueue_key;
 	int user_msgqueue_id;
+	key_t sysclock_key;
+	int sysclock_id;
+	system_clock* sysclock;
+	key_t system_data_structure_key;
+	int system_data_structure_id;
+	resource_desc *system_data_structure;
 	message msg;
-	key_t process_table_key;
-	int process_table_id;
-	proc_ctrl_blck *proc_ctrl_table;
-	proc_ctrl_blck proc_ctrl_block;
+	int max_claims = generateRandomNumber(MAX_CLAIM_RANDOM);
+	int current_resource = 0;
+	int is_granted;
+	int is_terminated = FALSE;
+	int allocated_per_resource[NUM_OF_RESOURCES];
 
+	int i;
+	for (i = 0; i < NUM_OF_RESOURCES; i++)
+	{
+		allocated_per_resource[i] = 0;
+	}
+
+	sysclock_key = ftok("/tmp", 'A');
 	oss_msgqueue_key  = ftok("/tmp", 'B');
 	user_msgqueue_key = ftok("/tmp", 'C');
-	process_table_key = ftok("/tmp", 'D');
+	system_data_structure_key = ftok("/tmp", 'D');
 
-	if (oss_msgqueue_key == (key_t) -1 || user_msgqueue_key == (key_t) -1 || process_table_key == (key_t) -1)
+	if (sysclock_key == (key_t) -1 || oss_msgqueue_key == (key_t) -1 || user_msgqueue_key == (key_t) -1 || system_data_structure_key == (key_t) -1)
 	{
 		printf("Error during ftok\n");
 		perror(perrorOutput);
 		exit(EXIT_FAILURE);
 	}
 
+	sysclock_id = shmget ( sysclock_key, sizeof(unsigned int), 0777 | IPC_CREAT );
 	oss_msgqueue_id  = msgget(oss_msgqueue_key, 0666);
 	user_msgqueue_id = msgget(user_msgqueue_key, 0666);
-	process_table_id = shmget (process_table_key , sizeof(proc_ctrl_blck) * MAX_NUM_USER_PROC, 0777 | IPC_CREAT );
+	system_data_structure_id = shmget (system_data_structure_key , sizeof(resource_desc), 0777 | IPC_CREAT );
 
-	if ( oss_msgqueue_id == -1 || user_msgqueue_id == -1 || process_table_id == -1 )
+	if ( sysclock_id == -1 ||  oss_msgqueue_id == -1 || user_msgqueue_id == -1 || system_data_structure_id == -1 )
 	{
 		printf("Error during get\n");
 		perror(perrorOutput);
 		exit(EXIT_FAILURE);
 	}
 
-	proc_ctrl_table = shmat( process_table_id, 0, 0 );
-	proc_ctrl_block = proc_ctrl_table[current_process_id];
+    sysclock = shmat( sysclock_id, 0, 0 );
+    if ( sysclock == (void *)-1  )
+    {
+		printf("master: Error in shmat sysclock \n");
+		perror(perrorOutput);
+		exit(EXIT_FAILURE);
+    }
+
+	system_data_structure = shmat( system_data_structure_id, 0, 0 );
+    if ( system_data_structure == (void *)-1  )
+    {
+		printf("master: Error in shmat system_data_structure \n");
+		perror(perrorOutput);
+		exit(EXIT_FAILURE);
+    }
 
 	strcpy(perrorOutput, argv[0]);
 	strcat(perrorOutput, ": Error: ");
 
 	while (1)
 	{
-		printf("user waiting for message\n");
-		int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), current_process_id, 0);
-		if (msg_rcv != -1)
+		msg.mesg_type = PARENT_QUEUE_ADDRESS;
+		msg.process_id = current_process_id;
+
+		// At random times (between 0 and 250ms), the process checks if it should terminate.
+		// Make sure to do this only after a process has run for at least 1 second.
+		if ((sysclock->sec >= 1 && (sysclock->nano_sec / TERMINATE_CHECK_NS < 1)) && isTerminated())
 		{
-			msg.mesg_type = PARENT_QUEUE_ADDRESS;
-			if (isTerminated())
-			{
-				msg.is_terminated  = TRUE;
-				msg.time_slice = generateRandomNumber(TIME_SLICE_USAGE_RANDOM, msg.time_slice);
-				msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
-			}
-			else
-			{
-				int interrupted_random_pct = generateRandomNumber(GET_RANDOM_PERCENTAGE, 0);
-				// cpu-bound processes should be very unlikely to get interrupted (so they will usually use up their entire timeslice without getting interrupted).
-				// On the other hand, i/o-bound processes should more likely than not get interrupted before finishing their time slices.
-				int interrupt_percentage = cpu_or_io == CPU_BOUND ? CPU_BOUND_INTERRUPT_PCT : IO_BOUND_INTERRUPT_PCT;
-				int is_interrupted = interrupted_random_pct <= interrupt_percentage ? TRUE : FALSE;
+			printf("Process P%d is Terminated\n", current_process_id);
+			msg.action_flag = TERMINATE_FLAG;
+			is_terminated = TRUE;
+			msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
+			return EXIT_SUCCESS;
+		}
 
-				msg.is_terminated = FALSE;
-				// If not interrupted, use all time slice, if interrupted randomize the number less than time slice
-				msg.is_interrupted = is_interrupted;
-				msg.time_slice = is_interrupted ? generateRandomNumber(TIME_SLICE_USAGE_RANDOM, msg.time_slice) : msg.time_slice;
+		int resource_id = generateRandomNumber(RESOURCE_ID_RANDOM);
+		is_granted = FALSE;
 
-				msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
+		if (!is_terminated && (current_resource == 0 || (isRequesting() && max_claims > current_resource)))
+		{
+			// Make the process request some resources.
+			// It will do so by putting a request in the shared memory.
+			// The request should never exceed the maximum claims minus whatever the process already has.
+			msg.num_of_resources = 1; // [0, B]
+			msg.action_flag = REQUEST_FLAG;
+			msg.resource_id = resource_id;
+
+			msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
+			int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), current_process_id, 0);
+			if (msg_rcv != -1)
+			{
+				is_granted = msg.mesg_granted;
 			}
+
+			if (is_granted)
+			{
+				allocated_per_resource[resource_id] += msg.num_of_resources;
+				current_resource += msg.num_of_resources;
+			}
+
+		}
+		else if (!is_terminated && (allocated_per_resource[resource_id] > 0))
+		{
+			// The process may decide to give up resources instead of asking for them.
+			// parameter giving a bound B for when a process should request (or release) a resource.
+			msg.num_of_resources = allocated_per_resource[resource_id];
+			msg.action_flag = RELEASE_FLAG;
+			msg.resource_id = resource_id;
+
+			msgsnd(oss_msgqueue_id, &msg, sizeof(message), 0);
+
+			int msg_rcv = msgrcv(user_msgqueue_id, &msg, (sizeof(message)-sizeof(long)), current_process_id, 0);
+			if (msg_rcv != -1)
+			{
+				is_granted = msg.mesg_granted;
+			}
+
+			if (is_granted)
+			{
+				allocated_per_resource[resource_id] -= msg.num_of_resources;
+				current_resource -= msg.num_of_resources;
+			}
+
 		}
 	}
 
