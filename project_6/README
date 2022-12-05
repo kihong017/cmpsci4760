@@ -1,0 +1,39 @@
+CMP SCI 4760 Operating Systems - Project 6
+
+The goal of this homework is to learn about memory management using virtual memory (paging) in an operating system.
+
+The program can be executed with following:
+  
+  oss   [-h] [-m x]
+
+  -h                 	: 	Shows help message
+  -m memory access way	: 	[Optional] 0 to simple memory generate. 1 to use weighted favor pages method
+ 
+
+The program will generate a file called logfile, and oss will write to it.
+The file will show when each process was dispatched and was done processing.
+
+How to test the program:
+
+  1.  Go to the directory where oss.c, and user_process.c are located
+
+  2.  Compile using 'make'. This will generate an executable 'oss' and 'user'.
+
+  2.1 Can delete the executable, object files, and logfiles using 'make clean'
+
+  3.  Use './oss' To execute the file using the default input
+
+  3.1 Use './oss -m 0 or 1' to choose different methods of page number choosing.
+  
+
+* I must've done something wrong to handle terminating a process and creating a new one.
+* Log file was generated with data. Chart could be little bit off the grid.
+* Was not able to implement the the special daemon program that kicks in when there are less than 10%
+  of the free memory 
+  
+  
+ Q. Which one is a more realistic model of the way pages would actually be requested?
+ 
+ - I believe the weighted method is much more realistic. It ensure more randomized choice of page number,
+ which helps prevent page fault better. Performance wise, I did not see too much difference, but using
+ the weighted method would require some overhead to generate the arrays.
